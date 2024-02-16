@@ -130,407 +130,76 @@ For more information on the create-stack command parameters, see the [AWS CLI Co
 3. Enter a working email address, and choose **Verify This Email Address**.
 4. Open the email in your email application, and verify it.
 
-## Create a Node.js project environment
+# Getting Started with Create React App
 
-1. Clone the [AWS Code Samples repo](https://github.com/awsdocs/aws-doc-sdk-examples) to your local environment. 
-See [the Github documentation](https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository) for 
-instructions.
+This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
-2. Run the following commands in sequence in the AWS CLI command line to install the AWS service client modules and third-party modules listed in the *package.json*:
+## Available Scripts
 
-```
-npm install node -g
-cd javascriptv3/example_code/cross-services/video-analyzer
-npm install
-```
-## Building the code
-This app runs from the browser, so we create the interface using HTML and CSS. 
-The app uses JavaScript to provide basic interactive features, and Node.js to invoke the AWS Services.
+In the project directory, you can run:
 
-### Creating the HTML and CSS
-In **index.html**, the **head** section loads the **main.js**, which contains the following JavaScript and Node.js functions used in the app.
+### `npm start`
 
-**Note**: **main.js** is a bundled file containing all the required JavaScript. You'll create this later in the tutorial.
+Runs the app in the development mode.\
+Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-The remaining code defines the interface features, including a table and buttons.
+The page will reload when you make changes.\
+You may also see any lint errors in the console.
 
-```html
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head th:fragment="site-head">
-    <meta charset="UTF-8" />
-    <link rel="icon" href="../public/images/favicon.ico" />
-    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
-    <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.min.js"></script>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"/>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
-    <link rel="stylesheet" href="../css/styles.css" th:href="@{/css/styles.css}" />
-    <link rel="icon" href="../images/favicon.ico" th:href="@{/images/favicon.ico}" />
-    <script src="./js/main.js" ></script>
-    <html xmlns:th="http://www.thymeleaf.org" >
-    <link href="//cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css" rel="stylesheet" type="text/css">
-    <script src="//cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
-</head>
-<body>
-<div id="upload">
-    <div class="container">
-        <h2>AWS Video Analyzer application</h2>
-        <p>Upload a video to an Amazon S3 bucket that will be analyzed!</p>
-        <input id="videoupload" type="file" name="file" /><br/><br/>
-        <button id="addvideo" onclick="uploadVideo()">Add video</button>
-        </form>
-        <div>
-            <br>
-            <p>Choose the following button to get information about the video to analyze.</p>
-            <button onclick="getVideo()">Show Video</button>
-            <table id="myTable" class="display" style="width:100%">
-                <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Owner</th>
-                    <th>Date</th>
-                    <th>Size</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr>
-                    <td id="videoname">No Data</td>
-                    <td id ="videoowner">No Data</td>
-                    <td id ="videodate">No Data </td>
-                    <td id ="videosize">No Data</td>
-                </tr>
-                </tbody>
-                <div id="success3"></div>
-            </table>
-        </div>
-    </div>
-</div>
-<div id="analyze"  >
-    <div class="container">
-        <p>You can generate a report that analyzes a video in an Amazon S3 bucket. You can send the report to the following email address. </p>
-        <label for="email">Email address:</label><br>
-        <input type="text" id="email" name="email" value=""><br>
-        <div>
-            <br>
-            <p>Click the following button to analyze the video and obtain a report</p>
-            <button id="button" onclick="ProcessImages()">Analyze Video</button>
-        </div>
-        <div id="spinner">
-            <p>Report is being generated:</p>
-        </div>
-    </div>
-</div>
-</div>
-<script src="./js/main.js" ></script>
-</body>
-</html>
-```
-### Creating the JavaScript
+### `npm test`
 
-The **./src/libs/** folders contains a file for each of the AWS Service clients required. You must
-replace "REGION" with your AWS Region, and replace "IDENTITY_POOL_ID" with the Amazon Cognito identity pool id
-you created in [Create the resources](#create-the-resources) on this page. Here's an example of one of these client configuration files:
- 
-```javascript
-import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
-import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-identity";
-import { RekognitionClient } from "@aws-sdk/client-rekognition";
+Launches the test runner in the interactive watch mode.\
+See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
-const REGION = "REGION";
-const IDENTITY_POOL_ID = "IDENTITY_POOL_ID"; // An Amazon Cognito Identity Pool ID.
+### `npm run build`
 
-// Create an AWS Rekognition service client object.
-const rekognitionClient = new RekognitionClient({
-    region: REGION,
-    credentials: fromCognitoIdentityPool({
-        client: new CognitoIdentityClient({ region: REGION }),
-        identityPoolId: IDENTITY_POOL_ID,
-    }),
-});
+Builds the app for production to the `build` folder.\
+It correctly bundles React in production mode and optimizes the build for the best performance.
 
-export { rekognitionClient };
-```
-In **.src/js/index.js**, you first import all the required AWS Service and third party modules, and set global parameters.
-```javascript
-import { rekognitionClient } from "../libs/rekognitionClient.js";
-import { s3Client } from "../libs/s3Client.js";
-import { sesClient } from "../libs/sesClient.js";
-import { SendEmailCommand } from "@aws-sdk/client-ses";
-import { ListObjectsCommand } from "@aws-sdk/client-s3";
-import { StartFaceDetectionCommand, GetFaceDetectionCommand } from "@aws-sdk/client-rekognition";
+The build is minified and the filenames include the hashes.\
+Your app is ready to be deployed!
 
-const BUCKET = "BUCKET_NAME";
-const SNS_TOPIC_ARN = "SNS_TOPIC_ARN";
-const IAM_ROLE_ARN = "IAM_ROLE_ARN";
-```
+See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
 
-Next, you define functions for uploading the video.
-```javascript
-$(function () {
-  $("#myTable").DataTable({
-    scrollY: "500px",
-    scrollX: true,
-    scrollCollapse: true,
-    paging: true,
-    columnDefs: [{ width: 200, targets: 0 }],
-    fixedColumns: true,
-  });
-});
-// Upload the video.
+### `npm run eject`
 
+**Note: this is a one-way operation. Once you `eject`, you can't go back!**
 
-const uploadVideo = async () => {
-  try {
-    // Retrieve a list of objects in the bucket.
-    const listObjects = await s3Client.send(
-      new ListObjectsCommand({ Bucket: BUCKET })
-    );
-    console.log("Object in bucket: ", listObjects);
-    console.log("listObjects.Contents ", listObjects.Contents );
+If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
 
-    const noOfObjects = listObjects.Contents;
-    // If the Amazon S3 bucket is not empty, delete the existing content.
-    if(noOfObjects != null) {
-      for (let i = 0; i < noOfObjects.length; i++) {
-        const data = await s3Client.send(
-            new DeleteObjectCommand({
-              Bucket: BUCKET,
-              Key: listObjects.Contents[i].Key
-            })
-        );
-      }
-    }
-    console.log("Success - bucket empty.");
+Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
 
-    // Create the parameters for uploading the video.
-    const videoName = document.getElementById("videoname").innerHTML + ".mp4";
-    const files = document.getElementById("videoupload").files;
-    const file = files[0];
-    const uploadParams = {
-      Bucket: BUCKET,
-      Body: file,
-    };
-    uploadParams.Key = path.basename(file.name);
-    const data = await s3Client.send(new PutObjectCommand(uploadParams));
-    console.log("Success - video uploaded");
-  } catch (err) {
-    console.log("Error", err);
-  }
-};
-window.uploadVideo = uploadVideo;
-```
-Next, you define functions for retrieving the video.
-```javascript
-const getVideo = async () => {
-  try {
-    const listVideoParams = {
-      Bucket: BUCKET
-    };
-    const data = await s3Client.send(new ListObjectsCommand(listVideoParams));
-    console.log("Success - video deleted", data);
-    const videoName = data.Contents[0].Key;
-    document.getElementById("videoname").innerHTML = videoName;
-    const videoDate = data.Contents[0].LastModified;
-    document.getElementById("videodate").innerHTML = videoDate;
-    const videoOwner = data.Contents[0].Owner;
-    document.getElementById("videoowner").innerHTML = videoOwner;
-    const videoSize = data.Contents[0].Size;
-    document.getElementById("videosize").innerHTML = videoSize;
-  } catch (err) {
-    console.log("Error", err);
-  }
-};
-window.getVideo = getVideo;
-```
-Define functions for analyzing the video, and sending the email.
-```javascript
-const ProcessImages = async () => {
-  try {
-    // Create the parameters required to start face detection.
-    const videoName = document.getElementById("videoname").innerHTML;
-    const startDetectParams = {
-      Video: {
-        S3Object: {
-          Bucket: BUCKET,
-          Name: videoName
-        },
-      },
-      notificationChannel: {
-        roleARN: IAM_ROLE_ARN,
-        SNSTopicArn: SNSTOPIC
-      },
-    };
-    // Start the Amazon Rekognition face detection process.
-    const data = await rekognitionClient.send(
-      new StartFaceDetectionCommand(startDetectParams)
-    );
-    console.log("Success, face detection started. ", data);
-    const faceDetectParams = {
-      JobId: data.JobId,
-    };
-    try {
-      var finished = false;
-      var facesArray = [];
-      // Detect the faces.
-      while (!finished) {
-        var results = await rekognitionClient.send(
-          new GetFaceDetectionCommand(faceDetectParams)
-        );
-        // Wait until the job succeeds.
-        if (results.JobStatus == "SUCCEEDED") {
-          finished = true;
-        }
-      }
-      finished = false;
-      // Parse results into CVS format.
-      const noOfFaces = results.Faces.length;
-      var i;
-      for (i = 0; i < results.Faces.length; i++) {
-        var boundingbox = JSON.stringify(results.Faces[i].Face.BoundingBox);
-        var confidence = JSON.stringify(results.Faces[i].Face.Confidence);
-        var pose = JSON.stringify(results.Faces[i].Face.Pose);
-        var quality = JSON.stringify(results.Faces[i].Face.Quality);
-        var arrayfirst = [];
-        var arraysecond = [];
-        var arraythird = [];
-        var arrayforth = [];
-        arrayfirst.push(boundingbox);
-        arraysecond.push(confidence);
-        arraythird.push(pose);
-        arrayforth.push(quality);
-        arrayfirst.push(arraysecond);
-        arrayfirst.push(arraythird);
-        arrayfirst.push(arrayforth);
-        facesArray.push(arrayfirst);
-      }
-      // Create the CSV file.
-      create_csv_file(facesArray);
-    } catch (err) {
-      console.log("Error", err);
-    }
-  } catch (err) {
-    console.log("Error", err);
-  }
-};
-window.ProcessImages = ProcessImages;
+You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
 
-// Helper function to create the CSV file.
-function create_csv_file(facesArray) {
-  // Define the heading for each row of the data.
-  var csv = "Bounding Box, , , , Confidance, Pose, , ,  Quality, ,\n";
+## Learn More
 
-  // Merge the data with CSV.
-  facesArray.forEach(function (row) {
-    csv += row.join(",");
-    csv += "\n";
-  });
-  // Upload the CSV file to Amazon S3.
-  uploadFile(csv);
-}
+You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
-// Helper function to upload file to Amazon S3.
-const uploadFile = async (csv) => {
-  const uploadParams = {
-    Bucket: BUCKET,
-    Body: csv,
-    Key: "Face.csv"
-  };
-  try {
-    const data = await s3Client.send(new PutObjectCommand(uploadParams));
-    const linkToCSV =
-      "https://s3.console.aws.amazon.com/s3/object/" +
-      uploadParams.Bucket +
-      "?region=" +
-      REGION +
-      "&prefix=" +
-      uploadParams.key;
-    console.log("Success. Report uploaded to " + linkToCSV + ".");
+To learn React, check out the [React documentation](https://reactjs.org/).
 
-    // Send an email to notify user when report is available.
-    sendEmail(uploadParams.Bucket, uploadParams.Key);
-  } catch (err) {
-    console.log("Error", err);
-  }
-};
-// Helper function to send an email to user.
-const sendEmail = async (bucket, key) => {
-  const toEmail = document.getElementById("email").value;
-  const fromEmail = "SENDER_ADDRESS";// 
-  try {
-    const linkToCSV =
-      "https://s3.console.aws.amazon.com/s3/object/" +
-      bucket +
-      "?region=" +
-      REGION +
-      "&prefix=" +
-      key;
-    // Set the parameters
-    const params = {
-      Destination: {   /* required */
-        CcAddresses: [
-          /* more items */
-        ],
-        ToAddresses: [
-          toEmail, //RECEIVER_ADDRESS
-          /* more To-email addresses */
-        ],
-      },
-      Message: {   /* required */
-        Body: {   /* required */
-          Html: {
-            Charset: "UTF-8",
-            Data:
-              "<h1>Hello!</h1><p>Please see the the analyzed video report for " +
-              key +
-              " <a href=" +
-              linkToCSV +
-              "> here</a></p>",
-          },
-          Text: {
-            Charset: "UTF-8",
-            Data:
-              "Hello,\\r\\n" +
-              "Please see the attached file for the analyzed video report at" +
-              linkToCSV +
-              "\n\n",
-          },
-        },
-        Subject: {
-          Charset: "UTF-8",
-          Data: key + " analyzed video report ready",
-        },
-      },
-      Source: fromEmail, // SENDER_ADDRESS
-      ReplyToAddresses: [
-        /* more items */
-      ],
-    };
-    const data = await sesClient.send(new SendEmailCommand(params));
-    console.log("Success. Email sent.", data);
-  } catch (err) {
-    console.log("Error", err);
-  }
-};
-```
-**Important**: You must bundle all the JavaScript and Node.js code required for the app into a single
- file (**main.js**) to run the app. For instructions, see [Bundling the scripts](#bundling-the-scripts).
+### Code Splitting
 
+This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
 
-### Bundling the scripts
-This is a static site consisting only of HTML, CSS, and client-side JavaScript. 
-However, a build step is required to enable the modules to work natively in the browser.
+### Analyzing the Bundle Size
 
-To bundle the JavaScript and Node.js for this example in a single file named main.js, 
-enter the following commands in sequence in the AWS CLI command line:
+This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
 
-```
-cd javascriptv3/example_code/cross-services/video-analyzer
-webpack ./js/index.js --mode development --target web --devtool false -o ./js/main.js
-```
-## Run the app
-Open the index.html in your favorite browser, and follow the onscreen instructions.
+### Making a Progressive Web App
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+
+### Advanced Configuration
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+
+### Deployment
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+
+### `npm run build` fails to minify
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
 
 ## Destroying the resources
 4. Open [AWS CloudFormation in the AWS Management Console](https://aws.amazon.com/cloudformation/), and open the *Stacks* page.
