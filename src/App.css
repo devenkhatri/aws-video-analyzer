@@ -36,3 +36,27 @@
     transform: rotate(360deg);
   }
 }
+
+
+/*Bootstrap Css*/
+.main{
+  max-width: 800px;
+  width:100%;
+  box-shadow:0px 0px 10px 3px #f2f2f2;
+  margin: 30px auto;
+  padding: 15px 20px;
+}
+.main_title_div{
+  position: relative;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+.main_title_div:after{
+  height:4px;
+  width:70px;
+  background:#ff9c8c;
+  display: block;
+  position: absolute;
+  bottom: 0; left: 0;
+  content: "";
+}
