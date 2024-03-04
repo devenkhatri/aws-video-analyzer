@@ -21,12 +21,12 @@ const VisuallyHiddenInput = styled('input')`
   width: 1px;
 `;
 
-const BootstrapPage = () => {
+const MainPage = () => {
   
   const [newVideo, setNewVideo] = useState();
   const [tableData, setTableData] = useState([]);
   const [pending, setPending] = useState(false);
-  
+
   const columns = [
     {
       name: "Name",
@@ -127,7 +127,7 @@ const BootstrapPage = () => {
           size: (parseInt(item.Size) / 1024 / 1024).toFixed(2) + " MB"
         }
       }))
-      console.log('pankaj :  ',formatedData);
+      console.log('formatedData :  ',formatedData);
       setTableData(formatedData);
       setPending(false);
     } catch (err) {
@@ -135,10 +135,17 @@ const BootstrapPage = () => {
     }
   };
   
-  const processVideo = async () => {
+  const ExpandedComponent = ({ data }) => {
+    console.log("************** start")
+    // await processVideo(data.name);
+    console.log("************** end")
+    return(<pre>{JSON.stringify(data, null, 2)}</pre>)
+  };
+  
+  const processVideo = async (videoName) => {
     try {
     // Create the parameters required to start face detection.
-      const videoName = document.getElementById("videoname").innerHTML;
+      // const videoName = document.getElementById("videoname").innerHTML;
       const startDetectParams = {
         Video: {
           S3Object: {
@@ -254,6 +261,8 @@ const BootstrapPage = () => {
                     highlightOnHover
                     pointerOnHover
                     selectableRows
+                    expandableRows
+                    expandableRowsComponent={ExpandedComponent}
                   />
                   :
                   <Typography level="body-md" sx={{ mb: 1, mt: 0 }}>There are no records to display</Typography>
@@ -272,10 +281,12 @@ const BootstrapPage = () => {
                     data={tableData2}
                     highlightOnHover
                     pointerOnHover
+                    expandableRows
+                    expandableRowsComponent={ExpandedComponent}
                   />
             </Box>
       </div>
   );
    
 };
-export default BootstrapPage;
+export default MainPage;

@@ -1,16 +1,14 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
-import StyledJS from "./pages/StyledJS";
 import Layout from "./components/Layout";
-import BootstrapPage from "./pages/BootstrapPage";
+import MainPage from "./pages/MainPage";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<BootstrapPage />} />
-          <Route path="styled" element={<StyledJS />} />
+          <Route index element={<MainPage />} />
           <Route path="*" element={<NoPage />} />
         </Route>
       </Routes>
