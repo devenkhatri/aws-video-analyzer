@@ -1,4 +1,5 @@
-import { CircularProgress, Checkbox, Table, Box, Typography, styled, Button, SvgIcon } from '@mui/joy';
+import { Box, Typography, styled, Button, SvgIcon } from '@mui/joy';
+import DataTable from "react-data-table-component";
 import { rekognitionClient } from "../libs/rekognitionClient.js";
 import { s3Client } from "../libs/s3Client.js";
 import { ListObjectsCommand, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -6,8 +7,7 @@ import { StartFaceDetectionCommand, GetFaceDetectionCommand } from "@aws-sdk/cli
 import { useState } from "react";
 
 const BUCKET = "video-analyzer-rekognitiondemobucketcf294c9a-dcy8whqkjqf0";
-const IAM_ROLE_ARN =
-  "arn:aws:iam::746397884673:role/VIDEO-ANALYZER-CognitoDefaultUnauthenticatedRoleABB-fwrvVX975ujY";
+//const IAM_ROLE_ARN = "arn:aws:iam::746397884673:role/VIDEO-ANALYZER-CognitoDefaultUnauthenticatedRoleABB-fwrvVX975ujY";
 
 const VisuallyHiddenInput = styled('input')`
   clip: rect(0 0 0 0);
@@ -26,6 +26,48 @@ const BootstrapPage = () => {
   const [newVideo, setNewVideo] = useState();
   const [tableData, setTableData] = useState([]);
   const [pending, setPending] = useState(false);
+  
+  const columns = [
+    {
+      name: "Name",
+      selector: (row) => row.name,
+    },
+    {
+      name: "Owner",
+      selector: (row) => row.owner,
+    },
+    {
+      name: "Date",
+      selector: (row) => row.date,
+    },
+    {
+      name: "Size",
+      selector: (row) => row.size,
+    },
+  ];
+  
+  const columns2 = [
+    {
+      name: "Column 1",
+      selector: (row) => row.name,
+    },
+    {
+      name: "Column 2",
+      selector: (row) => row.owner,
+    },
+    
+  ];
+  
+  const tableData2 = [
+    {
+      name: "Joe Y.- Branchburg Manufacturing-HcKVoKDGEsc-720p-1705642451.mp4",
+      owner: "arpit.kothari",
+    },
+    {
+      name: "bb0b5c7cafe90605f3fdbe65f4aaca4c.mp4",
+      owner: "arpit.kothari",
+    },
+  ];
   // Upload the video.
   const uploadVideo = async () => {
     try {
@@ -122,13 +164,13 @@ const BootstrapPage = () => {
               new GetFaceDetectionCommand(faceDetectParams)
             );
             // Wait until the job succeeds.
-            if (results.JobStatus == "SUCCEEDED") {
+            if (results.JobStatus === "SUCCEEDED") {
               finished = true;
             }
           }
           finished = false;
           // Parse results into CVS format.
-          const noOfFaces = results.Faces.length;
+          //const noOfFaces = results.Faces.length;
           var i;
           for (i = 0; i < results.Faces.length; i++) {
             var boundingbox = JSON.stringify(results.Faces[i].Face.BoundingBox);
@@ -198,52 +240,23 @@ const BootstrapPage = () => {
            </Box>
            <Box component="section" sx={{ p: 2, border: '1px solid #f2f2f2', mt:2}}>
               <Typography level="body-md" sx={{ mb: 1, mt: 0 }}>Choose the following button to get information about the video to analyze.</Typography>
-              <Button variant="soft" onClick={getAllVideos}>Show Video</Button>
+              <Button loading = {pending? true : false } loadingPosition="start"
+                variant="soft" 
+                onClick={getAllVideos}
+              >Show Video</Button>
               <Typography level="h3" sx={{ mb: 1, mt: 3 }}>List of Files</Typography>
               <div style={{ width: '100%', 'overflow' : 'auto'}}>
-                {pending ? 
-                  <CircularProgress />
-                :
-                  tableData[0] ?
-                    <Table style={{ width: 'auto', 'minWidth' : '100%'}} borderAxis="both" size={'sm'} sx={{ '& tr > *:first-of-type': { textAlign: 'center' } }}>
-                      <thead>
-                        <tr>
-                            <th>
-                                <Checkbox
-                                  color="warning"
-                                  label=""
-                                  variant="soft"
-                                />
-                            </th>
-                          <th>Name</th>
-                          <th>Owner</th>
-                          <th>Date</th>
-                          <th>Size</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {tableData.map((item)=>{
-                          return(
-                            <tr>
-                              <td>
-                                  <Checkbox
-                                    color="warning"
-                                    label=""
-                                    variant="soft"
-                                  />
-                              </td>
-                              <td>{item.name}</td>
-                              <td>{item.owner}</td>
-                              <td>{item.date}</td>
-                              <td>{item.size}</td>
-                            </tr>
-                          )
-                        })
-                      } 
-                      </tbody>
-                    </Table>
-                    :
-                    <Typography level="body-md" sx={{ mb: 1, mt: 0 }}>There are no records to display</Typography>
+                
+              {tableData[0] ?
+                  <DataTable
+                    columns={columns}
+                    data={tableData}
+                    highlightOnHover
+                    pointerOnHover
+                    selectableRows
+                  />
+                  :
+                  <Typography level="body-md" sx={{ mb: 1, mt: 0 }}>There are no records to display</Typography>
                   
                 }
               </div>
@@ -254,30 +267,12 @@ const BootstrapPage = () => {
               <Typography level="body-md" sx={{ mb: 2, mt: 0 }}>Click the following button to analyze the video and obtain a report</Typography>
               <Button variant="soft" onClick={processVideo}>Analyze Video</Button>
               <Typography level="body-md" sx={{ mb: 1, mt: 2 }}>Report is being generated:</Typography>
-              <div style={{ width: '100%', 'overflow' : 'auto'}}>
-                <Table style={{ width: 'auto', 'minWidth' : '100%'}} borderAxis="both" size={'sm'}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: '40%' }}>Column 1</th>
-                      <th>Column 2</th>
-                      <th>Column 3</th>
-                      
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                        <td>Joe Y.- Branchburg Manufacturing-HcKVoKDGEsc-7</td>
-                        <td>arpit.kothari</td>
-                        <td>2024-02-19T09:02:24.000Z</td>
-                    </tr>
-                    <tr>
-                        <td>bb0b5c7cafe90605f3fdbe65f4aaca4c.mp4</td>
-                        <td>arpit.kothari</td>
-                        <td>2024-02-19T08:50:24.000Z</td>
-                    </tr>
-                  </tbody>
-                </Table>
-              </div>
+              <DataTable
+                    columns={columns2}
+                    data={tableData2}
+                    highlightOnHover
+                    pointerOnHover
+                  />
             </Box>
       </div>
   );
