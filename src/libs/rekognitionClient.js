@@ -17,7 +17,7 @@ import { fromCognitoIdentityPool } from "@aws-sdk/credential-provider-cognito-id
 import { RekognitionClient } from "@aws-sdk/client-rekognition";
 
 const REGION = "us-east-1";
-const IDENTITY_POOL_ID = "us-east-1:ede7c726-b84b-4177-bf59-05e21535bd65"; // An Amazon Cognito Identity Pool ID.
+const IDENTITY_POOL_ID = "us-east-1:ec5a7813-91b7-479b-b22f-276763035c1b"; // An Amazon Cognito Identity Pool ID.
 
 // Create an Amazon Rekognition service client object.
 const rekognitionClient = new RekognitionClient({

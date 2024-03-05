@@ -1,10 +1,18 @@
-import { Box, Typography, styled, Button, SvgIcon } from "@mui/joy";
+import {
+  Box,
+  Typography,
+  styled,
+  Button,
+  SvgIcon,
+  LinearProgress,
+  Table,
+} from "@mui/joy";
 import { rekognitionClient } from "../libs/rekognitionClient.js";
 import { s3Client } from "../libs/s3Client.js";
 import { ListObjectsCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import {
-  StartFaceDetectionCommand,
-  GetFaceDetectionCommand,
+  GetTextDetectionCommand,
+  StartTextDetectionCommand,
 } from "@aws-sdk/client-rekognition";
 import { useState } from "react";
 import Select from "@mui/joy/Select";
@@ -29,8 +37,10 @@ const VisuallyHiddenInput = styled("input")`
 const MainPage = () => {
   const [newVideo, setNewVideo] = useState();
   const [videoList, setVideoList] = useState([]);
-  const [selectedVideo, setSelectedVideo] = useState("")
+  const [selectedVideo, setSelectedVideo] = useState("");
   const [pending, setPending] = useState(false);
+  const [detectedTextsArray, setDetectedTextsArray] = useState([]);
+  const [progressIndicator, setProgressIndicator] = useState(0);
 
   // Upload the video.
   const uploadVideo = async () => {
@@ -100,8 +110,8 @@ const MainPage = () => {
   };
 
   const processVideo = async () => {
-    console.log("****** selectedVideo", selectedVideo)
-    if(!selectedVideo) return;
+    console.log("****** selectedVideo", selectedVideo);
+    if (!selectedVideo) return;
     try {
       // Create the parameters required to start face detection.
       // const videoName = document.getElementById("videoname").innerHTML;
@@ -115,48 +125,46 @@ const MainPage = () => {
       };
       // Start the Amazon Rekognition face detection process.
       const data = await rekognitionClient.send(
-        new StartFaceDetectionCommand(startDetectParams)
+        new StartTextDetectionCommand(startDetectParams)
       );
-      console.log("Success, face detection started. ", data);
-      const faceDetectParams = {
+      console.log("Success, text detection started. ", data);
+      const textDetectParams = {
         JobId: data.JobId,
       };
       try {
+        setDetectedTextsArray([]);
+        setProgressIndicator(0);
         var finished = false;
-        var facesArray = [];
+        var outputArray = [];
         // Detect the faces.
         while (!finished) {
+          console.log("** Job in progress", data, new Date());
           var results = await rekognitionClient.send(
-            new GetFaceDetectionCommand(faceDetectParams)
+            new GetTextDetectionCommand(textDetectParams)
           );
+          const now = new Date();
+          let seconds = now.getSeconds();
+          console.log("**** Job results", results, new Date());
+          setProgressIndicator((seconds * 100) / 60);
           // Wait until the job succeeds.
           if (results.JobStatus === "SUCCEEDED") {
             finished = true;
+            setProgressIndicator(100);
           }
         }
         finished = false;
         // Parse results into CVS format.
         //const noOfFaces = results.Faces.length;
         var i;
-        for (i = 0; i < results.Faces.length; i++) {
-          var boundingbox = JSON.stringify(results.Faces[i].Face.BoundingBox);
-          var confidence = JSON.stringify(results.Faces[i].Face.Confidence);
-          var pose = JSON.stringify(results.Faces[i].Face.Pose);
-          var quality = JSON.stringify(results.Faces[i].Face.Quality);
-          var arrayfirst = [];
-          var arraysecond = [];
-          var arraythird = [];
-          var arrayforth = [];
-          arrayfirst.push(boundingbox);
-          arraysecond.push(confidence);
-          arraythird.push(pose);
-          arrayforth.push(quality);
-          arrayfirst.push(arraysecond);
-          arrayfirst.push(arraythird);
-          arrayfirst.push(arrayforth);
-          facesArray.push(arrayfirst);
+        for (i = 0; i < results.TextDetections.length; i++) {
+          // var detectedText = JSON.stringify(
+          //   results.TextDetections[i].TextDetection.DetectedText
+          // );
+          // var timeStamp = JSON.stringify(results.TextDetections[i].Timestamp);
+          if(results.TextDetections[i].TextDetection.Type === "LINE") outputArray.push({...results.TextDetections[i]});
+          setDetectedTextsArray(outputArray);
         }
-        console.log("Faces Detection Output: ", facesArray);
+        console.log("Text Detection Output: ", outputArray);
       } catch (err) {
         console.log("Error", err);
       }
@@ -233,7 +241,7 @@ const MainPage = () => {
           variant="soft"
           onClick={getAllVideos}
         >
-          Show Video
+          Fetch Video List
         </Button>
         <Typography level="h3" sx={{ mb: 1, mt: 3 }}>
           List of Files
@@ -249,11 +257,18 @@ const MainPage = () => {
             sx={{ width: "100%" }}
             onChange={(e, newValue) => setSelectedVideo(newValue)}
           >
-            {videoList && videoList.map((item) => <Option value={item.name}>{item.name}</Option>)}
+            {videoList &&
+              videoList.map((item) => (
+                <Option key={item.id} value={item.name}>
+                  {item.name}
+                </Option>
+              ))}
           </Select>
           <Typography sx={{ mb: 1, mt: 3 }}>
             <b>Selected Video:</b>
-            {selectedVideo && <pre>{JSON.stringify(selectedVideo, null, 2)}</pre>}
+            {selectedVideo && (
+              <pre>{JSON.stringify(selectedVideo, null, 2)}</pre>
+            )}
           </Typography>
         </div>
       </Box>
@@ -272,9 +287,32 @@ const MainPage = () => {
         <Button variant="soft" onClick={processVideo}>
           Analyze Video
         </Button>
+        <br />
+        <LinearProgress determinate value={progressIndicator} />
         <Typography level="body-md" sx={{ mb: 1, mt: 2 }}>
-          Report is being generated:
-        </Typography>        
+          Report is being generated:          
+        </Typography>
+        <Table variant={'outlined'} color={'primary'}>
+            <thead>
+              <tr>
+                <th>Detected Text</th>
+                <th>Timestamp</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detectedTextsArray.map((row, index) => (
+                <tr key={index}>
+                  <td>{row.TextDetection.DetectedText}</td>
+                  <td>{row.Timestamp}</td>
+                  <td>{(parseInt(row.Timestamp))-1000}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+          {detectedTextsArray && detectedTextsArray.length > 0 && (
+            <pre>{JSON.stringify(detectedTextsArray, null, 2)}</pre>
+          )}
       </Box>
     </div>
   );
