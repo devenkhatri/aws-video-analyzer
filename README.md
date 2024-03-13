@@ -14,6 +14,11 @@ This tutorial shows you how to use the AWS SDK for JavaScript V3 API to invoke t
 
 **Note**: Be sure to terminate all of the resources after you have completed this tutorial to ensure that you are not charged.
 
+### It uses https://github.com/robinmoisson/staticrypt for password protecting pages
+
+### Add 'STATICRYPT_PASSWORD' environment variable with actual password to protect the pages
+
+
 ## Prerequisites
 
 To build this cross-service example, you need the following:
