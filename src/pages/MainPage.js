@@ -6,6 +6,10 @@ import {
   SvgIcon,
   LinearProgress,
   Grid,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  AccordionGroup,
 } from "@mui/joy";
 import { rekognitionClient } from "../libs/rekognitionClient.js";
 import { s3Client } from "../libs/s3Client.js";
@@ -55,9 +59,9 @@ const MainPage = () => {
 
   // Column Definitions: Defines the columns to be displayed.
   const [resultColumns] = useState([
-    { field: "DetectedText",flex: 2, filter: true, floatingFilter: true },
-    { field: "TimeStamp",flex: 1, valueFormatter: p => 'at ' + p.value },
-    { field: "Confidence",flex: 1, valueFormatter: p => p.value+' %' },
+    { field: "DetectedText", flex: 2, filter: true, floatingFilter: true },
+    { field: "TimeStamp", flex: 1, valueFormatter: (p) => "at " + p.value },
+    { field: "Confidence", flex: 1, valueFormatter: (p) => p.value + " %" },
   ]);
 
   // Upload the video.
@@ -117,6 +121,7 @@ const MainPage = () => {
           owner: item.Owner.DisplayName,
           date: item.LastModified.toISOString(),
           size: (parseInt(item.Size) / 1024 / 1024).toFixed(2) + " MB",
+          publicUrl: `https://${BUCKET}.s3.amazonaws.com/${item.Key}`,
         };
       });
       console.log("formatedData :  ", formatedData);
@@ -223,6 +228,13 @@ const MainPage = () => {
     ].join(":");
   };
 
+  const PrettyJson = (data) => {
+    return <pre>{JSON.stringify(data, null, 2)}</pre>;
+  };
+
+  const selectedVideoDetails =
+    videoList && videoList.filter((item) => item.name === selectedVideo);
+
   return (
     <div className="main">
       <div className="main_title_div">
@@ -250,7 +262,7 @@ const MainPage = () => {
           </Button>
         }
       >
-        No video selected in <strong>Step-2</strong> 
+        No video selected in <strong>Step-2</strong>
       </Snackbar>
       <Box component="section" sx={{ p: 2, border: "2px solid #f2f2f2" }}>
         <Chip color="primary" variant="solid" sx={{ mb: 1 }}>
@@ -324,8 +336,8 @@ const MainPage = () => {
             >
               Fetch Video List
             </Button>
-          </Grid>          
-          <Grid md={12}>
+          </Grid>
+          <Grid md={6}>
             <Typography level="h3" sx={{ mb: 1, mt: 3 }}>
               List of Files
             </Typography>
@@ -347,11 +359,29 @@ const MainPage = () => {
                     </Option>
                   ))}
               </Select>
-              <Typography sx={{ mb: 1, mt: 3 }}>
-                <b>Selected Video:</b> {selectedVideo}
-              </Typography>
+              <AccordionGroup transition="0.2s ease" sx={{ mt: 2 }}>
+                <Accordion>
+                  <AccordionSummary>
+                    <b>Selected Video:</b>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    {PrettyJson(selectedVideoDetails)}
+                  </AccordionDetails>
+                </Accordion>
+              </AccordionGroup>              
             </div>
-          </Grid>          
+          </Grid>
+          <Grid md={6}>
+            <Typography level="h3" sx={{ mb: 1, mt: 3 }}>
+              Video Preview
+            </Typography>
+            {selectedVideoDetails && selectedVideoDetails.length > 0 && (
+                <video width="100%"  controls>
+                <source src={selectedVideoDetails[0].publicUrl} />
+              Your browser does not support the video tag.
+              </video>
+              )}
+          </Grid>
         </Grid>
       </Box>
 
@@ -388,7 +418,15 @@ const MainPage = () => {
             rowSelection="single"
             pagination={true}
           />
-        </div>        
+        </div>
+        <AccordionGroup transition="0.2s ease">
+          <Accordion>
+            <AccordionSummary>Raw Output</AccordionSummary>
+            <AccordionDetails>
+              {PrettyJson(detectedTextsArray)}
+            </AccordionDetails>
+          </Accordion>
+        </AccordionGroup>
       </Box>
     </div>
   );
