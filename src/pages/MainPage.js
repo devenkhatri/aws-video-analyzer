@@ -5,7 +5,7 @@ import {
   Button,
   SvgIcon,
   LinearProgress,
-  Table,
+  Grid,
 } from "@mui/joy";
 import { rekognitionClient } from "../libs/rekognitionClient.js";
 import { s3Client } from "../libs/s3Client.js";
@@ -18,6 +18,15 @@ import { useState } from "react";
 import Select from "@mui/joy/Select";
 import Option from "@mui/joy/Option";
 import Chip from "@mui/joy/Chip";
+import Snackbar from "@mui/joy/Snackbar";
+
+import { AgGridReact } from "ag-grid-react"; // AG Grid Component
+import "ag-grid-community/styles/ag-grid.css"; // Mandatory CSS required by the grid
+import "ag-grid-community/styles/ag-theme-alpine.css"; // Optional Theme applied to the grid
+
+//saved result from rekognition to avoid multiple calls while testing
+// import jobresult from "../temp-results/jobresult.js";
+// import processedresult from "../temp-results/processedresult.js";
 
 const BUCKET = "video-analyzer-rekognitiondemobucketcf294c9a-dcy8whqkjqf0";
 //const IAM_ROLE_ARN = "arn:aws:iam::746397884673:role/VIDEO-ANALYZER-CognitoDefaultUnauthenticatedRoleABB-fwrvVX975ujY";
@@ -38,9 +47,18 @@ const MainPage = () => {
   const [newVideo, setNewVideo] = useState();
   const [videoList, setVideoList] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState("");
-  const [pending, setPending] = useState(false);
+  const [fetchInProgress, setFetchInProgress] = useState(false);
   const [detectedTextsArray, setDetectedTextsArray] = useState([]);
+  const [analysisInProgress, setAnalysisInProgress] = useState(false);
   const [progressIndicator, setProgressIndicator] = useState(0);
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+
+  // Column Definitions: Defines the columns to be displayed.
+  const [resultColumns] = useState([
+    { field: "DetectedText",flex: 2, filter: true, floatingFilter: true },
+    { field: "TimeStamp",flex: 1, valueFormatter: p => 'at ' + p.value },
+    { field: "Confidence",flex: 1, valueFormatter: p => p.value+' %' },
+  ]);
 
   // Upload the video.
   const uploadVideo = async () => {
@@ -89,7 +107,7 @@ const MainPage = () => {
       const listVideoParams = {
         Bucket: BUCKET,
       };
-      setPending(true);
+      setFetchInProgress(true);
       const data = await s3Client.send(new ListObjectsCommand(listVideoParams));
       console.log("Success - available videos", data);
       const formatedData = data.Contents.map((item) => {
@@ -103,7 +121,7 @@ const MainPage = () => {
       });
       console.log("formatedData :  ", formatedData);
       setVideoList(formatedData);
-      setPending(false);
+      setFetchInProgress(false);
     } catch (err) {
       console.log("Error", err);
     }
@@ -111,10 +129,13 @@ const MainPage = () => {
 
   const processVideo = async () => {
     console.log("****** selectedVideo", selectedVideo);
-    if (!selectedVideo) return;
+    if (!selectedVideo) {
+      setOpenSnackbar(true);
+      return;
+    }
+    setAnalysisInProgress(true);
     try {
-      // Create the parameters required to start face detection.
-      // const videoName = document.getElementById("videoname").innerHTML;
+      // Create the parameters required to start text detection.
       const startDetectParams = {
         Video: {
           S3Object: {
@@ -123,7 +144,7 @@ const MainPage = () => {
           },
         },
       };
-      // Start the Amazon Rekognition face detection process.
+      // Start the Amazon Rekognition text detection process.
       const data = await rekognitionClient.send(
         new StartTextDetectionCommand(startDetectParams)
       );
@@ -135,7 +156,6 @@ const MainPage = () => {
         setDetectedTextsArray([]);
         setProgressIndicator(0);
         var finished = false;
-        var outputArray = [];
         // Detect the faces.
         while (!finished) {
           console.log("** Job in progress", data, new Date());
@@ -150,27 +170,57 @@ const MainPage = () => {
           if (results.JobStatus === "SUCCEEDED") {
             finished = true;
             setProgressIndicator(100);
+            setAnalysisInProgress(false);
           }
         }
         finished = false;
-        // Parse results into CVS format.
-        //const noOfFaces = results.Faces.length;
-        var i;
-        for (i = 0; i < results.TextDetections.length; i++) {
-          // var detectedText = JSON.stringify(
-          //   results.TextDetections[i].TextDetection.DetectedText
-          // );
-          // var timeStamp = JSON.stringify(results.TextDetections[i].Timestamp);
-          if(results.TextDetections[i].TextDetection.Type === "LINE") outputArray.push({...results.TextDetections[i]});
-          setDetectedTextsArray(outputArray);
-        }
-        console.log("Text Detection Output: ", outputArray);
+
+        //show the result
+        showResult(results);
       } catch (err) {
         console.log("Error", err);
       }
     } catch (err) {
       console.log("Error", err);
     }
+  };
+
+  // const processVideo = async () => {
+  //   showResult(jobresult);
+  // };
+
+  const showResult = (results) => {
+    var outputArray = [];
+    var i;
+    for (i = 0; i < results.TextDetections.length; i++) {
+      if (
+        results.TextDetections[i].TextDetection.Type === "LINE" &&
+        results.TextDetections[i].TextDetection.DetectedText?.length > 2
+      )
+        // outputArray.push({ ...results.TextDetections[i] });
+        outputArray.push({
+          DetectedText: results.TextDetections[i].TextDetection.DetectedText,
+          TimeStamp: formatTime(parseInt(results.TextDetections[i].Timestamp)),
+          Confidence: parseFloat(
+            results.TextDetections[i].TextDetection.Confidence
+          ).toFixed(2),
+        });
+
+      setDetectedTextsArray(outputArray);
+    }
+    console.log("Text Detection Output: ", outputArray);
+  };
+
+  const formatTime = (milliseconds) => {
+    const seconds = Math.floor((milliseconds / 1000) % 60);
+    const minutes = Math.floor((milliseconds / 1000 / 60) % 60);
+    const hours = Math.floor((milliseconds / 1000 / 60 / 60) % 24);
+
+    return [
+      hours.toString().padStart(2, "0"),
+      minutes.toString().padStart(2, "0"),
+      seconds.toString().padStart(2, "0"),
+    ].join(":");
   };
 
   return (
@@ -180,10 +230,36 @@ const MainPage = () => {
           AWS Video Analyzer application
         </Typography>
       </div>
-      <Box component="section" sx={{ p: 2, border: "1px solid #f2f2f2" }}>
+      <Snackbar
+        autoHideDuration={5000}
+        variant="solid"
+        // variant="soft"
+        color="danger"
+        size="lg"
+        open={openSnackbar}
+        onClose={() => setOpenSnackbar(false)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        endDecorator={
+          <Button
+            onClick={() => setOpenSnackbar(false)}
+            size="sm"
+            variant="soft"
+            color="danger"
+          >
+            Dismiss
+          </Button>
+        }
+      >
+        No video selected in <strong>Step-2</strong> 
+      </Snackbar>
+      <Box component="section" sx={{ p: 2, border: "2px solid #f2f2f2" }}>
+        <Chip color="primary" variant="solid" sx={{ mb: 1 }}>
+          1
+        </Chip>
         <div className="upload_file_text">
-          <Typography level="body-md" sx={{ mb: 1, mt: 2 }}>
-            Upload a video to an Amazon S3 bucket that will be analyzed!
+          <Typography level="body-md">
+            REQUIRED ONLY ONCE. Select the video from local to be analysed. This
+            step is required to be done only once per video!
           </Typography>
           <Button
             component="label"
@@ -229,90 +305,90 @@ const MainPage = () => {
       </Box>
       <Box
         component="section"
-        sx={{ p: 2, border: "1px solid #f2f2f2", mt: 2 }}
+        sx={{ p: 2, border: "2px solid #f2f2f2", mt: 2 }}
       >
-        <Typography level="body-md" sx={{ mb: 1, mt: 0 }}>
-          Choose the following button to get information about the video to
-          analyze.
-        </Typography>
-        <Button
-          loading={pending ? true : false}
-          loadingPosition="start"
-          variant="soft"
-          onClick={getAllVideos}
-        >
-          Fetch Video List
-        </Button>
-        <Typography level="h3" sx={{ mb: 1, mt: 3 }}>
-          List of Files
-        </Typography>
-        <div style={{ width: "100%", overflow: "auto" }}>
-          <Select
-            placeholder="Select a video to analyse…"
-            endDecorator={
-              <Chip size="sm" color="success" variant="soft">
-                {videoList.length}
-              </Chip>
-            }
-            sx={{ width: "100%" }}
-            onChange={(e, newValue) => setSelectedVideo(newValue)}
-          >
-            {videoList &&
-              videoList.map((item) => (
-                <Option key={item.id} value={item.name}>
-                  {item.name}
-                </Option>
-              ))}
-          </Select>
-          <Typography sx={{ mb: 1, mt: 3 }}>
-            <b>Selected Video:</b>
-            {selectedVideo && (
-              <pre>{JSON.stringify(selectedVideo, null, 2)}</pre>
-            )}
-          </Typography>
-        </div>
+        <Grid container sx={{ flexGrow: 1 }}>
+          <Grid md={12}>
+            <Chip color="primary" variant="solid" sx={{ mb: 1 }}>
+              2
+            </Chip>
+            <Typography level="body-md" sx={{ mb: 1, mt: 0 }}>
+              Fetch already uploaded videos list and Choose the following button
+              to get information about the video to analyze.
+            </Typography>
+            <Button
+              loading={fetchInProgress}
+              loadingPosition="start"
+              variant="soft"
+              onClick={getAllVideos}
+            >
+              Fetch Video List
+            </Button>
+          </Grid>          
+          <Grid md={12}>
+            <Typography level="h3" sx={{ mb: 1, mt: 3 }}>
+              List of Files
+            </Typography>
+            <div style={{ width: "100%", overflow: "auto" }}>
+              <Select
+                placeholder="Select a video to analyse…"
+                endDecorator={
+                  <Chip size="sm" color="success" variant="soft">
+                    {videoList.length}
+                  </Chip>
+                }
+                sx={{ width: "100%" }}
+                onChange={(e, newValue) => setSelectedVideo(newValue)}
+              >
+                {videoList &&
+                  videoList.map((item) => (
+                    <Option key={item.id} value={item.name}>
+                      {item.name}
+                    </Option>
+                  ))}
+              </Select>
+              <Typography sx={{ mb: 1, mt: 3 }}>
+                <b>Selected Video:</b> {selectedVideo}
+              </Typography>
+            </div>
+          </Grid>          
+        </Grid>
       </Box>
 
       <Box
         component="section"
-        sx={{ p: 2, border: "1px solid #f2f2f2", mt: 2 }}
+        sx={{ p: 2, border: "2px solid #f2f2f2", mt: 2 }}
       >
-        <Typography level="body-md" sx={{ mb: 1, mt: 0 }}>
-          You can generate a report that analyzes a video in an Amazon S3
-          bucket.
-        </Typography>
+        <Chip color="primary" variant="solid" sx={{ mb: 1 }}>
+          3
+        </Chip>
         <Typography level="body-md" sx={{ mb: 2, mt: 0 }}>
-          Click the following button to analyze the video and obtain a report
+          Click the following button to analyze the above selected video and
+          obtain a report
         </Typography>
-        <Button variant="soft" onClick={processVideo}>
+        <Button
+          variant="soft"
+          onClick={processVideo}
+          loading={analysisInProgress}
+          loadingPosition="start"
+        >
           Analyze Video
         </Button>
-        <br />
-        <LinearProgress determinate value={progressIndicator} />
+        <LinearProgress determinate value={progressIndicator} sx={{ mt: 1 }} />
         <Typography level="body-md" sx={{ mb: 1, mt: 2 }}>
-          Report is being generated:          
+          Video Analysis Report:
         </Typography>
-        <Table variant={'outlined'} color={'primary'}>
-            <thead>
-              <tr>
-                <th>Detected Text</th>
-                <th>Timestamp</th>
-                <th>Timestamp</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detectedTextsArray.map((row, index) => (
-                <tr key={index}>
-                  <td>{row.TextDetection.DetectedText}</td>
-                  <td>{row.Timestamp}</td>
-                  <td>{(parseInt(row.Timestamp))-1000}</td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-          {detectedTextsArray && detectedTextsArray.length > 0 && (
-            <pre>{JSON.stringify(detectedTextsArray, null, 2)}</pre>
-          )}
+        <div
+          className="ag-theme-alpine" // applying the grid theme
+          style={{ height: 500 }} // the grid will fill the size of the parent container
+        >
+          <AgGridReact
+            rowData={detectedTextsArray}
+            columnDefs={resultColumns}
+            rowSelection="single"
+            pagination={true}
+          />
+        </div>        
       </Box>
     </div>
   );
