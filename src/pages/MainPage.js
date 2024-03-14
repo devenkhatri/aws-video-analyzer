@@ -10,6 +10,10 @@ import {
   AccordionSummary,
   AccordionDetails,
   AccordionGroup,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanel,
 } from "@mui/joy";
 import { rekognitionClient } from "../libs/rekognitionClient.js";
 import { s3Client } from "../libs/s3Client.js";
@@ -145,7 +149,7 @@ const MainPage = () => {
         Video: {
           S3Object: {
             Bucket: BUCKET,
-            Name: selectedVideo,
+            Name: selectedVideo.name,
           },
         },
       };
@@ -229,11 +233,18 @@ const MainPage = () => {
   };
 
   const PrettyJson = (data) => {
-    return <pre>{JSON.stringify(data, null, 2)}</pre>;
+    return <pre style={{whiteSpace: 'break-spaces'}}>{JSON.stringify(data, null, 2)}</pre>;
   };
 
-  const selectedVideoDetails =
-    videoList && videoList.filter((item) => item.name === selectedVideo);
+  const getVideoDetails = (videoName) => {
+    const items = videoList && videoList.filter((item) => item.name === videoName);
+    if (items && items.length > 0) {
+      return items[0];
+    }
+    return null;
+  }
+
+  console.log("****** selectedVideo", selectedVideo);
 
   return (
     <div className="main">
@@ -262,135 +273,139 @@ const MainPage = () => {
           </Button>
         }
       >
-        No video selected in <strong>Step-2</strong>
+        No video selected in <strong>Step-1</strong>
       </Snackbar>
-      <Box component="section" sx={{ p: 2, border: "2px solid #f2f2f2" }}>
-        <Chip color="primary" variant="solid" sx={{ mb: 1 }}>
-          1
-        </Chip>
-        <div className="upload_file_text">
-          <Typography level="body-md">
-            REQUIRED ONLY ONCE. Select the video from local to be analysed. This
-            step is required to be done only once per video!
-          </Typography>
-          <Button
-            component="label"
-            role={undefined}
-            tabIndex={-1}
-            variant="outlined"
-            color="neutral"
-            startDecorator={
-              <SvgIcon>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
+
+      <Tabs aria-label="Main Tabs" defaultValue={0}>
+        <TabList>
+          <Tab color="primary">Select Existing Video</Tab>
+          <Tab color="warning">Upload New Video</Tab>
+        </TabList>
+        <TabPanel value={0}>
+          <Chip color="primary" variant="solid" sx={{ mb: 1 }}>
+            1
+          </Chip>
+          <Grid container spacing={3} sx={{ flexGrow: 1 }}>
+            <Grid md={12}>
+              <Typography level="body-md" sx={{ mb: 1, mt: 0 }}>
+                Fetch already uploaded videos list and Choose the following
+                button to get information about the video to analyze.
+              </Typography>
+              <Button
+                loading={fetchInProgress}
+                loadingPosition="start"
+                variant="soft"
+                onClick={getAllVideos}
+              >
+                Fetch Video List
+              </Button>
+            </Grid>
+            <Grid md={6}>
+              <Typography level="h3" sx={{ mb: 1, mt: 3 }}>
+                List of Files
+              </Typography>
+              <div style={{ width: "100%", overflow: "auto" }}>
+                <Select
+                  placeholder="Fetch and Select a video to analyse…"
+                  endDecorator={
+                    <Chip size="sm" color="success" variant="soft">
+                      {videoList.length}
+                    </Chip>
+                  }
+                  sx={{ width: "100%" }}
+                  onChange={(e, newValue) => setSelectedVideo(getVideoDetails(newValue))}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"
-                  />
-                </svg>
-              </SvgIcon>
-            }
-          >
-            Upload a Video
-            <VisuallyHiddenInput
-              type="file"
-              accept="video/*"
-              onChange={({ target: { files } }) => {
-                files[0] && setNewVideo(files[0]);
-              }}
-            />
-          </Button>
-          <Typography level="body-md" sx={{ mb: 1, mt: 0 }}>
-            Selected Video ={" "}
-            {(newVideo && newVideo.name) || "No Video Selected"}
-          </Typography>
-          <Button variant="soft" onClick={uploadVideo}>
-            Add Video
-          </Button>
-        </div>
-      </Box>
-      <Box
-        component="section"
-        sx={{ p: 2, border: "2px solid #f2f2f2", mt: 2 }}
-      >
-        <Grid container sx={{ flexGrow: 1 }}>
-          <Grid md={12}>
-            <Chip color="primary" variant="solid" sx={{ mb: 1 }}>
-              2
-            </Chip>
-            <Typography level="body-md" sx={{ mb: 1, mt: 0 }}>
-              Fetch already uploaded videos list and Choose the following button
-              to get information about the video to analyze.
+                  {videoList &&
+                    videoList.map((item) => (
+                      <Option key={item.id} value={item.name}>
+                        {item.name}
+                      </Option>
+                    ))}
+                </Select>
+                <AccordionGroup transition="0.2s ease" sx={{ mt: 2 }}>
+                  <Accordion expanded>
+                    <AccordionSummary>
+                      <b>Selected Video:</b>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {PrettyJson(selectedVideo)}
+                    </AccordionDetails>
+                  </Accordion>
+                </AccordionGroup>
+              </div>
+            </Grid>
+            <Grid md={6}>
+              <Typography level="h3" sx={{ mb: 1, mt: 3 }}>
+                Video Preview
+              </Typography>
+              {selectedVideo && (
+                <video key={selectedVideo.publicUrl} width="100%" controls>
+                  <source src={selectedVideo.publicUrl} />
+                  Your browser does not support the video tag.
+                </video>
+              )}
+            </Grid>
+          </Grid>
+        </TabPanel>
+        <TabPanel value={1}>
+          <Chip color="primary" variant="solid" sx={{ mb: 1 }}>
+            1
+          </Chip>
+          <div className="upload_file_text">
+            <Typography level="body-md">
+              REQUIRED ONLY ONCE. Select the video from local to be analysed.
+              This step is required to be done only once per video!
             </Typography>
             <Button
-              loading={fetchInProgress}
-              loadingPosition="start"
-              variant="soft"
-              onClick={getAllVideos}
+              component="label"
+              role={undefined}
+              tabIndex={-1}
+              variant="outlined"
+              color="neutral"
+              startDecorator={
+                <SvgIcon>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"
+                    />
+                  </svg>
+                </SvgIcon>
+              }
             >
-              Fetch Video List
+              Upload a Video
+              <VisuallyHiddenInput
+                type="file"
+                accept="video/*"
+                onChange={({ target: { files } }) => {
+                  files[0] && setNewVideo(files[0]);
+                }}
+              />
             </Button>
-          </Grid>
-          <Grid md={6}>
-            <Typography level="h3" sx={{ mb: 1, mt: 3 }}>
-              List of Files
+            <Typography level="body-md" sx={{ mb: 1, mt: 0 }}>
+              Selected Video ={" "}
+              {(newVideo && newVideo.name) || "No Video Selected"}
             </Typography>
-            <div style={{ width: "100%", overflow: "auto" }}>
-              <Select
-                placeholder="Select a video to analyse…"
-                endDecorator={
-                  <Chip size="sm" color="success" variant="soft">
-                    {videoList.length}
-                  </Chip>
-                }
-                sx={{ width: "100%" }}
-                onChange={(e, newValue) => setSelectedVideo(newValue)}
-              >
-                {videoList &&
-                  videoList.map((item) => (
-                    <Option key={item.id} value={item.name}>
-                      {item.name}
-                    </Option>
-                  ))}
-              </Select>
-              <AccordionGroup transition="0.2s ease" sx={{ mt: 2 }}>
-                <Accordion>
-                  <AccordionSummary>
-                    <b>Selected Video:</b>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    {PrettyJson(selectedVideoDetails)}
-                  </AccordionDetails>
-                </Accordion>
-              </AccordionGroup>              
-            </div>
-          </Grid>
-          <Grid md={6}>
-            <Typography level="h3" sx={{ mb: 1, mt: 3 }}>
-              Video Preview
-            </Typography>
-            {selectedVideoDetails && selectedVideoDetails.length > 0 && (
-                <video width="100%"  controls>
-                <source src={selectedVideoDetails[0].publicUrl} />
-              Your browser does not support the video tag.
-              </video>
-              )}
-          </Grid>
-        </Grid>
-      </Box>
+            <Button variant="soft" onClick={uploadVideo}>
+              Add Video
+            </Button>
+          </div>
+        </TabPanel>
+      </Tabs>
 
       <Box
         component="section"
         sx={{ p: 2, border: "2px solid #f2f2f2", mt: 2 }}
       >
         <Chip color="primary" variant="solid" sx={{ mb: 1 }}>
-          3
+          2
         </Chip>
         <Typography level="body-md" sx={{ mb: 2, mt: 0 }}>
           Click the following button to analyze the above selected video and
